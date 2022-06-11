@@ -1,73 +1,107 @@
-import socket
-import sys
 import json
-import select
+import socket
 
 BUFFER_SIZE = 4096
 HOST = '127.0.1.1'
 PORT = 9999
 
-def client():
-    client_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_connection.settimeout(5)
-    try:
-        client_connection.connect((HOST, PORT))
-    except socket.error:
-        print("Unable to connect!")
-        sys.exit(0)
-    print("Connected to the server!")
-    sys.stdout.write("> ")
-    sys.stdout.flush()
-    while True:
-        sockets_list = [sys.stdin, client_connection]
-        r, w, e = select.select(sockets_list, [], [])
-        for notified_socket in r:
-            if notified_socket == client_connection:
-                data = client_connection.recv(BUFFER_SIZE).decode()
-                if data == "GETADMINPASS":
-                    tmp_pass = "123"
-                    client_connection.send(tmp_pass.encode())
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
-                elif data:
-                    sys.stdout.write(data)
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
-                else:
-                    print("You have been disconnected from the  server!")
-                    sys.exit(0)
-            else:
-                append = sys.stdin.readline()
-                if append == '/reg\n':
-                    username = input("Username: ")
-                    password = input("Password: ")
-                    reg_data = {'username': username, 'password': password, 'send_key': 'REGISTRATION'}
-                    send_data_server(client_connection, reg_data)
-                    print(client_connection.recv(BUFFER_SIZE).decode())
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
-                elif append == '/auth\n':
-                    username = input("Username: ")
-                    password = input("Password: ")
-                    reg_data = {'username': username, 'password': password, 'send_key': 'LOGIN'}
-                    send_data_server(client_connection, reg_data)
-                    print(client_connection.recv(BUFFER_SIZE).decode())
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
-                else:
-                    reg_data = {'massage': append, 'send_key': 'TEST'}
-                    send_data_server(client_connection, reg_data)
-                    sys.stdout.write("> ")
-                    sys.stdout.flush()
 
-def send_data_server(client_connection, data):
-    data = json.dumps(data)
-    #(len(bytes(data,encoding="utf-8"))) #длина сообщения
-    client_connection.send(bytes(data,encoding="utf-8"))
+class LabTcpClient:
+    def __init__(self, ip, port, buffer):
+
+        self.ip = ip
+        self.port = port
+        self.buffer = buffer
+        self.server_address = (ip, port)
+        self.data = None
+        self.sock = None
+        self.create_socket()
+
+    def create_socket(self):
+        """Создаем подключение."""
+
+        while not self.sock:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.settimeout(5)
+            self.connect_sock()
+            print("Server conected create {}".format(self.server_address))
+
+    def connect_sock(self):
+        """Пытаемся подключится."""
+
+        try:
+            self.sock.connect(self.server_address)
+            print("Connected to the server!")
+            return 1
+        except socket.error:
+            print("Unable to connect!")
+            return None
+
+    def send_data_server(self, data):
+        """Отправка сообщения с помощью send."""
+        # Если нет подключения пытаемся подключится заново
+        if not self.sock:
+            self.reconnect()
+
+        data = json.dumps(data)
+
+        try:
+            self.sock.send(bytes(data, encoding="utf-8"))
+        except:
+            print("Send: {}".format(data))
+            # Новое создание сокета
+            self.sock.close()
+            self.sock = None
+
+    def recv_data_server(self):
+        """Возвращяем присланные данные"""
+        return self.sock.recv(self.buffer).decode("utf-8")
+
+    def reconnect(self):
+        """Переподключится."""
+
+        self.sock = None
+        self.create_socket()
+
+    def close_sock(self):
+        """Закрыть соеденение"""
+
+        try:
+            self.sock.close()
+        except:
+            print("Клиентский сокет уже закрыт")
+
+        self.sock = None
+
+    def listen(self):
+        """Возвращает полученные необработанные данные."""
+
+        raw_data = None
+        raw_data = self.sock.recv()
+        return raw_data
 
 
 if __name__ == "__main__":
     try:
-        client()
+        clt = LabTcpClient(HOST, PORT, BUFFER_SIZE)
+        while True:
+            append = input("Command: ")
+            if append == '/reg':
+                username = input("Username: ")
+                password = input("Password: ")
+                reg_data = {'username': username,
+                            'password': password, 'send_key': 'REGISTRATION'}
+                clt.send_data_server(reg_data)
+                print(clt.recv_data_server())
+            elif append == '/auth':
+                username = input("Username: ")
+                password = input("Password: ")
+                reg_data = {'username': username,
+                            'password': password, 'send_key': 'LOGIN'}
+                clt.send_data_server(reg_data)
+                print(clt.recv_data_server())
+            else:
+                reg_data = {'massage': append, 'send_key': 'TEST'}
+                clt.send_data_server(reg_data)
     except KeyboardInterrupt:
         print("\nClient Disconnected!")

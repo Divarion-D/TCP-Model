@@ -13,3 +13,9 @@ tcp file transfer/server_files/server.py
 crypt_decript_file/requirements.txt
 app/app.kv
 app/client_gui.py
+tcpclient/buildozer.spec
+tcpclient/labtcpclient.py
+tcpclient/main.py
+tcpclient/tcpclient.ini
+tcpclient/tcpclient.kv
+tcpclient/__pycache__/labtcpclient.cpython-38.pyc

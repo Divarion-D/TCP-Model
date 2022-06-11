@@ -1,8 +1,7 @@
+import _thread as thread
 import json
-import select
 import socket
 import sys
-import threading
 
 from tinydb import Query, TinyDB
 
@@ -10,8 +9,9 @@ HOST = socket.gethostbyname(socket.gethostname())
 PORT = 9999
 MAX_CLIENTS = 99
 BUFFER_SIZE = 4096
-sockets_list = []
 clients = {}
+db = TinyDB('users.json')
+socket_obj = socket.socket()
 
 
 class User(object):
@@ -34,72 +34,64 @@ class Logger(object):
 
 
 sys.stdout = Logger("log_server.txt")
-db = TinyDB('users.json')
 
 
-def run_server():
+def on_new_client(client_socket, client_addr):
+    client_authorize = False
     while True:
-        read_sockets, write_sockets, exception_sockets = select.select(
-            sockets_list, [], [])
-        for notified_socket in read_sockets:
-            if notified_socket == server_socket:
-                client_socket, client_address = server_socket.accept()
-                print(f"New incoming connection from {client_address[0]}")
-                sockets_list.append(client_socket)
-                client_aithorize = False
-            if not client_aithorize:
+        if not client_authorize:
+            data = recv_data_client(client_socket)
+            if data:
+                send_key = data['send_key']
+                print(client_addr)
+                print(send_key + " not auth")  # debug
+                if send_key == 'REGISTRATION':
+                    username = data['username']
+                    password = data['password']
+                    clients[client_socket] = User(username, password)
+                    query = Query()
+                    if not db.search(query.username == clients[client_socket].username):
+                        data = {
+                            "username": clients[client_socket].username,
+                            "password": clients[client_socket].password,
+                        }
+                        db.insert(data)
+                        client_authorize = True
+                        send_data_client(
+                            client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
+                    else:
+                        send_data_client(
+                            client_socket, {'message': "Username aloved!", 'status': 'ERROR'})
+                elif send_key == 'LOGIN':
+                    username = data['username']
+                    password = data['password']
+                    query = Query()
+                    if db.search(query.username == username and query.password == password):
+                        clients[client_socket] = User(username, password)
+                        client_authorize = True
+                        send_data_client(
+                            client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
+                    else:
+                        send_data_client(
+                            client_socket, {'message': "Invalid password or login!", 'status': 'ERROR'})
+                else:
+                    send_data_client(
+                        client_socket, {'message': "Not Authorize", 'status': 'ERROR'})
+        else:
+            try:
                 data = recv_data_client(client_socket)
                 if data:
                     send_key = data['send_key']
-                    print(send_key + " not auth")  # debug
-                    if send_key == 'REGISTRATION':
-                        username = data['username']
-                        password = data['password']
-                        clients[client_socket] = User(username, password)
-                        query = Query()
-                        if not db.search(query.username == clients[client_socket].username):
-                            data = {
-                                "username": clients[client_socket].username,
-                                "password": clients[client_socket].password,
-                            }
-                            db.insert(data)
-                            client_aithorize = True
-                            send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
-                        else:
-                            send_data_client(
-                                client_socket, {'message': "Username aloved!", 'status': 'ERROR'})
-                    elif send_key == 'LOGIN':
-                        username = data['username']
-                        password = data['password']
-                        query = Query()
-                        if db.search(query.username == username and query.password == password):
-                            clients[client_socket] = User(username, password)
-                            client_aithorize = True
-                            send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
-                        else:
-                            send_data_client(
-                                client_socket, {'message': "Invalid password or login!", 'status': 'ERROR'})
-                    else:
-                        send_data_client(
-                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'})
-            else:
-                try:
-                    data = recv_data_client(notified_socket)
-                    if data:
-                        send_key = data['send_key']
-                        print(send_key + " auth")  # debug
-                        if send_key == "TEST":
-                            print('authorize')
-                    else:
-                        remove_socket(notified_socket)
-                        print(
-                            f"{clients[notified_socket].username} has disconnected")
-                except ConnectionResetError:
+                    print(send_key + " auth")  # debug
+                    if send_key == "TEST":
+                        print('authorize')
+                else:
+                    client_socket.close()
                     print(
-                        f"Connection reset by {clients[client_socket].username}")
-                    continue
+                        f"{clients[client_socket].username} has disconnected")
+            except ConnectionResetError:
+                print(f"Connection reset by {clients[client_socket].username}")
+                continue
 
 
 def recv_data_client(client_socket):
@@ -115,33 +107,19 @@ def send_data_client(client_socket, data):
     client_socket.send(bytes(data, encoding="utf-8"))
 
 
-def send_to_client(message, client_socket, server_socket):
-    for client in sockets_list[1:]:
-        if client == client_socket and client != server_socket:
-            try:
-                client_socket.send(message.encode())
-            except:
-                remove_socket(client)
-
-
-def remove_socket(client_socket):
-    if client_socket in sockets_list:
-        sockets_list.remove(client_socket)
-        client_socket.close()
-
-
 if __name__ == "__main__":
     try:
-        print("Running server script..")
-        print("Starting server on port 9999!")
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind((HOST, PORT))
-        server_socket.listen(MAX_CLIENTS)
-        sockets_list.append(server_socket)
-        print(f"Server started on {HOST} : {PORT}")
-        print("Waiting for incoming connections..")
-        threading.Thread(target=run_server())
+        print('Server started!')
+        print('Waiting for clients...')
+        socket_obj.bind((HOST, PORT))                   # Bind to the port
+        # Now wait for client connection.
+        socket_obj.listen(MAX_CLIENTS)
+        while True:
+            # Establish connection with client.
+            client_socket, client_addr = socket_obj.accept()
+            print('New incoming connection from', client_addr)
+            thread.start_new_thread(
+                on_new_client, (client_socket, client_addr))
     except KeyboardInterrupt:
-        server_socket.close()
+        socket_obj.close()
         print("\nServer stopped!")

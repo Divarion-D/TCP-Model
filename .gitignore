@@ -10,3 +10,6 @@ tcp file transfer/client_files/client.py
 tcp file transfer/client_files/index.jpeg
 tcp file transfer/server_files/index.jpeg
 tcp file transfer/server_files/server.py
+crypt_decript_file/requirements.txt
+app/app.kv
+app/client_gui.py

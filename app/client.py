@@ -1,14 +1,13 @@
-import json
-import select
 import socket
 import sys
+import json
+import select
 
 BUFFER_SIZE = 4096
 HOST = '127.0.1.1'
 PORT = 9999
 
-
-def chat():
+def client():
     client_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_connection.settimeout(5)
     try:
@@ -39,12 +38,10 @@ def chat():
                     sys.exit(0)
             else:
                 append = sys.stdin.readline()
-                #append = "/reg"
                 if append == '/reg\n':
                     username = input("Username: ")
                     password = input("Password: ")
-                    reg_data = {'username': username,
-                                'password': password, 'send_key': 'REGISTRATION'}
+                    reg_data = {'username': username, 'password': password, 'send_key': 'REGISTRATION'}
                     send_data_server(client_connection, reg_data)
                     print(client_connection.recv(BUFFER_SIZE).decode())
                     sys.stdout.write("> ")
@@ -52,8 +49,7 @@ def chat():
                 elif append == '/auth\n':
                     username = input("Username: ")
                     password = input("Password: ")
-                    reg_data = {'username': username,
-                                'password': password, 'send_key': 'LOGIN'}
+                    reg_data = {'username': username, 'password': password, 'send_key': 'LOGIN'}
                     send_data_server(client_connection, reg_data)
                     print(client_connection.recv(BUFFER_SIZE).decode())
                     sys.stdout.write("> ")
@@ -64,15 +60,14 @@ def chat():
                     sys.stdout.write("> ")
                     sys.stdout.flush()
 
-
 def send_data_server(client_connection, data):
     data = json.dumps(data)
-    # (len(bytes(data,encoding="utf-8"))) #длина сообщения
-    client_connection.send(bytes(data, encoding="utf-8"))
+    #(len(bytes(data,encoding="utf-8"))) #длина сообщения
+    client_connection.send(bytes(data,encoding="utf-8"))
 
 
 if __name__ == "__main__":
     try:
-        chat()
+        client()
     except KeyboardInterrupt:
         print("\nClient Disconnected!")

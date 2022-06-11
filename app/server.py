@@ -39,8 +39,9 @@ db = TinyDB('users.json')
 
 def run_server():
     while True:
-        exception_sockets = select.select(sockets_list, [], [])
-        for notified_socket in exception_sockets:
+        read_sockets, write_sockets, exception_sockets = select.select(
+            sockets_list, [], [])
+        for notified_socket in read_sockets:
             if notified_socket == server_socket:
                 client_socket, client_address = server_socket.accept()
                 print(f"New incoming connection from {client_address[0]}")

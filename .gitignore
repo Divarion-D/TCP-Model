@@ -1,21 +1,4 @@
-chat/client.py
-chat/server.py
-chat/log/key.key
-chat/log/server.txt
-chat/log/users.json
-crypt_decript_file/crypt_decript_file.py
-crypt_decript_file/index.jpeg
-crypt_decript_file/password.key
-tcp file transfer/client_files/client.py
-tcp file transfer/client_files/index.jpeg
-tcp file transfer/server_files/index.jpeg
-tcp file transfer/server_files/server.py
-crypt_decript_file/requirements.txt
-app/app.kv
-app/client_gui.py
-tcpclient/buildozer.spec
-tcpclient/labtcpclient.py
-tcpclient/main.py
-tcpclient/tcpclient.ini
-tcpclient/tcpclient.kv
-tcpclient/__pycache__/labtcpclient.cpython-38.pyc
+test
+.ai
+app/Server/users.json
+app/Server/log_server.txt

@@ -1,0 +1,113 @@
+# GUI for the unauth window   
+<UnAuth>:
+    FloatLayout:
+        size: root.width, root.height
+
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "Signup"
+            font_size: "22dp"
+            size_hint : 0.4, 0.1
+            pos_hint : {"x" : 0.33, "top" : 0.3}
+            on_release: 
+                app.go_signup()
+                root.manager.transition.direction = "left"
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "Login"
+            font_size: "22dp"
+            size_hint : 0.4, 0.1
+            pos_hint : {"x" : 0.33, "top" : 0.2}
+            on_release: 
+                app.go_login()
+                root.manager.transition.direction = "left"
+             
+# GUI for the login window                
+<LoginWindow>:
+    username : username
+    pwd : pwd
+    FloatLayout:
+        size: root.width, root.height
+        Label:
+            text : "USERNAME: "
+            size_hint : 0.2, 0.1
+            pos_hint : {"x" : 0.45, "top" : 1}
+        TextInput:
+            id : username
+            multiline : False
+            size_hint : 0.3, 0.05
+            pos_hint : {"x" : 0.40, "top" : 0.92}
+        Label:
+            text : "PASSWORD: "
+            size_hint : 0.2, 0.1
+            pos_hint : {"x" : 0.45, "top" : 0.8}
+        TextInput:
+            id : pwd
+            multiline : False
+            size_hint : 0.3, 0.05
+            pos_hint : {"x" : 0.40, "top" : 0.72}
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "LOGIN"
+            font_size: "22dp"
+            size_hint : 0.3, 0.1
+            pos_hint : {"x" : 0.39, "top" : 0.3}
+            on_press :
+                root.LoginBtn()
+                root.manager.transition.direction = "up"
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "Back"
+            font_size: "22dp"
+            size_hint : 0.3, 0.1
+            pos_hint : {"x" : 0.39, "top" : 0.17}
+            on_release: 
+                app.go_unauth()
+                root.manager.transition.direction = "right"
+  
+# GUI for the signup window
+<SignupWindow>:
+    username : username
+    password : password
+    FloatLayout:
+        Label:
+            text : "USERNAME: "
+            size_hint : 0.2, 0.1
+            pos_hint : {"x" : 0.45, "top" : 1}
+        TextInput:
+            id : username
+            multiline : False
+            size_hint : 0.3, 0.05
+            pos_hint : {"x" : 0.40, "top" : 0.92}
+        Label:
+            text : "PASSWORD: "
+            size_hint : 0.2, 0.1
+            pos_hint : {"x" : 0.45, "top" : 0.8}
+        TextInput:
+            id : password
+            multiline : False
+            size_hint : 0.3, 0.05
+            pos_hint : {"x" : 0.40, "top" : 0.72}
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "SUBMIT"
+            font_size: "22dp"
+            size_hint : 0.3, 0.1
+            pos_hint : {"x" : 0.39, "top" : 0.3}
+            on_press :
+                root.SignUpBtn()
+                root.manager.transition.direction = "right"
+        Button:
+            background_color: (0.8, 0.8, 0.8, 1)
+            text : "Back"
+            font_size: "22dp"
+            size_hint : 0.3, 0.1
+            pos_hint : {"x" : 0.39, "top" : 0.17}
+            on_release: 
+                app.go_unauth()
+                root.manager.transition.direction = "right"
+# GUI for pop up window
+<P>:
+    Label:
+        size_hint : 0.2, 0.1
+        pos_hint : {"x" : 0.3, "top" : 0.8}  

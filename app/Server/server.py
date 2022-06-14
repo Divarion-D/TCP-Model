@@ -1,8 +1,13 @@
 import _thread as thread
+import base64
+import hashlib
 import json
 import socket
 import sys
 
+from Crypto import Random
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
 from tinydb import Query, TinyDB
 
 HOST = socket.gethostbyname(socket.gethostname())
@@ -12,6 +17,12 @@ BUFFER_SIZE = 4096
 clients = {}
 db = TinyDB('users.json')
 socket_obj = socket.socket()
+
+RSAkey = RSA.generate(1024, Random.new().read)
+public = RSAkey.publickey().exportKey()
+private = RSAkey.exportKey()
+
+hash_public = hashlib.md5(public).hexdigest()
 
 
 class User(object):
@@ -91,12 +102,14 @@ def on_new_client(client_socket, client_addr):
                         print(
                             f"{clients[client_socket].username} has disconnected")
                 except ConnectionResetError:
-                    print(f"Connection reset by {clients[client_socket].username}")
+                    print(
+                        f"Connection reset by {clients[client_socket].username}")
                     continue
     except Exception:
-            client_socket.close()
-            print(f"{client_addr} has disconnected")
-            return True
+        client_socket.close()
+        print(f"{client_addr} has disconnected")
+        return True
+
 
 def recv_data_client(client_socket):
     data = (client_socket.recv(BUFFER_SIZE)).decode("utf-8")
@@ -109,6 +122,20 @@ def recv_data_client(client_socket):
 def send_data_client(client_socket, data):
     data = json.dumps(data)
     client_socket.send(bytes(data, encoding="utf-8"))
+
+
+def encrypt_with_public_key(byte_message, public_key):
+    encryptor = PKCS1_OAEP.new(public_key)
+    encrypted_msg = encryptor.encrypt(byte_message)
+    encoded_encrypted_msg = base64.b64encode(encrypted_msg)
+    return encoded_encrypted_msg
+
+
+def decrypt_with_public_key(byte_message, private_key):
+    decode_encrypted_msg = base64.b64decode(byte_message)
+    private_key = PKCS1_OAEP.new(private_key)
+    decrypted_text = private_key.decrypt(decode_encrypted_msg)
+    return decrypted_text
 
 
 if __name__ == "__main__":

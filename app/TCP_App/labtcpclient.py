@@ -1,5 +1,17 @@
+import base64
+import hashlib
 import json
 import socket
+
+from Crypto import Random
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+
+RSAkey = RSA.generate(1024, Random.new().read)
+public = RSAkey.publickey().exportKey()
+private = RSAkey.exportKey()
+
+hash_public = hashlib.md5(public).hexdigest()
 
 class LabTcpClient:
     def __init__(self, ip, port, buffer):
@@ -53,6 +65,20 @@ class LabTcpClient:
         data = self.sock.recv(self.buffer).decode("utf-8")
         data = json.loads(data)
         return data
+
+    def encrypt_with_public_key(byte_message, public_key):
+        """RSA Шифрование текста"""
+        encryptor = PKCS1_OAEP.new(public_key)
+        encrypted_msg = encryptor.encrypt(byte_message)
+        encoded_encrypted_msg = base64.b64encode(encrypted_msg)
+        return encoded_encrypted_msg
+
+    def decrypt_with_public_key(byte_message, private_key):
+        """RSA Расшифровка текста"""
+        decode_encrypted_msg = base64.b64decode(byte_message)
+        private_key = PKCS1_OAEP.new(private_key)
+        decrypted_text = private_key.decrypt(decode_encrypted_msg)
+        return decrypted_text
 
     def reconnect(self):
         """Переподключится."""

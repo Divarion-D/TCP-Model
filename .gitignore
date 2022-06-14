@@ -2,3 +2,4 @@ test
 .ai
 app/Server/users.json
 app/Server/log_server.txt
+app/TCP_App/.buildozer/

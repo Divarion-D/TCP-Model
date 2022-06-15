@@ -1,5 +1,6 @@
 import _thread as thread
 import base64
+import bcrypt
 import hashlib
 import json
 import socket
@@ -66,9 +67,11 @@ def on_new_client(client_socket, client_addr):
                         clients[client_socket] = User(username, password)
                         query = Query()
                         if not db.search(query.username == clients[client_socket].username):
+                            # Generate salt
+                            salt_pwd = bcrypt.gensalt()
                             data = {
                                 "username": clients[client_socket].username,
-                                "password": clients[client_socket].password,
+                                "password": bcrypt.hashpw(clients[client_socket].password.encode('utf-8'), salt_pwd).decode("utf-8"),
                             }
                             db.insert(data)
                             client_authorize = True
@@ -81,14 +84,20 @@ def on_new_client(client_socket, client_addr):
                         username = data['username']
                         password = data['password']
                         query = Query()
-                        if db.search(query.username == username and query.password == password):
-                            clients[client_socket] = User(username, password)
-                            client_authorize = True
-                            send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+                        data_user = db.get(query.username == username)
+                        if data_user:
+                            hash_pwd = data_user['password'].encode('utf-8')
+                            if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):
+                                clients[client_socket] = User(username, password)
+                                client_authorize = True
+                                send_data_client(
+                                    client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+                            else:
+                                send_data_client(
+                                    client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client)
                         else:
                             send_data_client(
-                                client_socket, {'message': "Invalid password or login!", 'status': 'ERROR'}, public_key_client)
+                                client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client)
                     else:
                         send_data_client(
                             client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client)
@@ -116,13 +125,14 @@ def on_new_client(client_socket, client_addr):
 
 def recv_data_client(client_socket, private_key_server):
     data = client_socket.recv(BUFFER_SIZE)
-    data = decrypt_with_private_key(data, private_key_server).decode("utf-8")
-    print(data)
     try:
-        return json.loads(data)
+        data = decrypt_with_private_key(data, private_key_server).decode("utf-8")
+        try:
+            return json.loads(data)
+        except ValueError:
+            return data
     except ValueError:
-        return data
-
+        return data 
 
 def send_data_client(client_socket, data, public_key_client):
 

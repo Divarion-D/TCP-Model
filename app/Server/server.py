@@ -8,6 +8,7 @@ import sys
 from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
+from lazyme.string import color_print
 from tinydb import Query, TinyDB
 
 HOST = socket.gethostbyname(socket.gethostname())
@@ -19,10 +20,11 @@ db = TinyDB('users.json')
 socket_obj = socket.socket()
 
 RSAkey = RSA.generate(1024, Random.new().read)
-public = RSAkey.publickey().exportKey()
-private = RSAkey.exportKey()
+public_key = RSAkey.publickey().exportKey()
+private_key = RSAkey.exportKey()
+private_key_imp = RSA.importKey(private_key)
 
-hash_public = hashlib.md5(public).hexdigest()
+hash_public_key = hashlib.md5(public_key).hexdigest()
 
 
 class User(object):
@@ -50,9 +52,10 @@ sys.stdout = Logger("log_server.txt")
 def on_new_client(client_socket, client_addr):
     try:
         client_authorize = False
+        public_key_client = rsa_connect(client_socket)
         while True:
             if not client_authorize:
-                data = recv_data_client(client_socket)
+                data = recv_data_client(client_socket, private_key_imp)
                 if data:
                     send_key = data['send_key']
                     print(client_addr)
@@ -70,10 +73,10 @@ def on_new_client(client_socket, client_addr):
                             db.insert(data)
                             client_authorize = True
                             send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
+                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
                         else:
                             send_data_client(
-                                client_socket, {'message': "Username aloved!", 'status': 'ERROR'})
+                                client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client)
                     elif send_key == 'LOGIN':
                         username = data['username']
                         password = data['password']
@@ -82,16 +85,16 @@ def on_new_client(client_socket, client_addr):
                             clients[client_socket] = User(username, password)
                             client_authorize = True
                             send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'})
+                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
                         else:
                             send_data_client(
-                                client_socket, {'message': "Invalid password or login!", 'status': 'ERROR'})
+                                client_socket, {'message': "Invalid password or login!", 'status': 'ERROR'}, public_key_client)
                     else:
                         send_data_client(
-                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'})
+                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client)
             else:
                 try:
-                    data = recv_data_client(client_socket)
+                    data = recv_data_client(client_socket, private_key_imp)
                     if data:
                         send_key = data['send_key']
                         print(send_key + " auth")  # debug
@@ -111,27 +114,56 @@ def on_new_client(client_socket, client_addr):
         return True
 
 
-def recv_data_client(client_socket):
-    data = (client_socket.recv(BUFFER_SIZE)).decode("utf-8")
+def recv_data_client(client_socket, private_key_server):
+    data = client_socket.recv(BUFFER_SIZE)
+    data = decrypt_with_private_key(data, private_key_server).decode("utf-8")
+    print(data)
     try:
         return json.loads(data)
     except ValueError:
         return data
 
 
-def send_data_client(client_socket, data):
-    data = json.dumps(data)
-    client_socket.send(bytes(data, encoding="utf-8"))
+def send_data_client(client_socket, data, public_key_client):
+
+    data = bytes(json.dumps(data), encoding="utf-8")
+    data = encrypt_with_public_key(data, public_key_client)
+    
+    client_socket.send(data)
+
+
+def rsa_connect(client_socket):
+    data = (client_socket.recv(BUFFER_SIZE)).decode("utf-8").replace("\r\n", '')
+    if data:
+        split = data.split(":")
+        tmpClientPublic = split[0]
+        clientPublicHash = split[1]
+        tmpHashObject = hashlib.md5(bytes(tmpClientPublic, encoding="utf-8"))
+        tmpHash = tmpHashObject.hexdigest()
+        
+        if tmpHash == clientPublicHash:
+            color_print(
+                "\n[!] Anonymous client's public key and public key hash matched\n", color="blue")
+            clientPublic = RSA.importKey(tmpClientPublic)
+
+            data = f'{public_key.decode("utf-8")}:{hash_public_key}'
+            client_socket.send(bytes(data, encoding="utf-8"))
+            return clientPublic
+        else:
+            client_socket.close()
+            print(f"{client_addr} has disconnected")
 
 
 def encrypt_with_public_key(byte_message, public_key):
+    """RSA Шифрование текста"""
     encryptor = PKCS1_OAEP.new(public_key)
     encrypted_msg = encryptor.encrypt(byte_message)
     encoded_encrypted_msg = base64.b64encode(encrypted_msg)
     return encoded_encrypted_msg
 
 
-def decrypt_with_public_key(byte_message, private_key):
+def decrypt_with_private_key(byte_message, private_key):
+    """RSA Расшифровка текста"""
     decode_encrypted_msg = base64.b64decode(byte_message)
     private_key = PKCS1_OAEP.new(private_key)
     decrypted_text = private_key.decrypt(decode_encrypted_msg)
@@ -140,17 +172,18 @@ def decrypt_with_public_key(byte_message, private_key):
 
 if __name__ == "__main__":
     try:
-        print('Server started!')
-        print('Waiting for clients...')
+        color_print("Server started!", color="yellow")
+        color_print("Waiting for clients...", color="yellow")
         socket_obj.bind((HOST, PORT))                   # Bind to the port
         # Now wait for client connection.
         socket_obj.listen(MAX_CLIENTS)
         while True:
             # Establish connection with client.
             client_socket, client_addr = socket_obj.accept()
-            print('New incoming connection from', client_addr)
+            color_print(
+                f'New incoming connection from {client_addr}', color="green")
             thread.start_new_thread(
                 on_new_client, (client_socket, client_addr))
     except KeyboardInterrupt:
         socket_obj.close()
-        print("\nServer stopped!")
+        color_print("Server stopped!", color="red")

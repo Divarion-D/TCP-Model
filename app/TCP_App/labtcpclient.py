@@ -31,9 +31,9 @@ class LabTcpClient:
         while not self.sock:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(5)
-            self.connect_sock()
-            self.public_key_serv = self.rsa_connect()
-            print("Server conected create {}".format(self.server_address))
+            if self.connect_sock():
+                self.public_key_serv = self.rsa_connect()
+                print("Server conected create {}".format(self.server_address))
 
     def connect_sock(self):
         """Пытаемся подключится."""
@@ -41,10 +41,10 @@ class LabTcpClient:
         try:
             self.sock.connect(self.server_address)
             print("Connected to the server!")
-            return 1
+            return True
         except socket.error:
             print("Unable to connect!")
-            return None
+            return False
     
     def rsa_connect(self):
         data = f'{self.public_key.decode("utf-8")}:{self.hash_public_key}'
@@ -73,8 +73,8 @@ class LabTcpClient:
             self.reconnect()
 
         data = bytes(json.dumps(data), encoding="utf-8")
-        data = self.encrypt_with_public_key(data)
         try:
+            data = self.encrypt_with_public_key(data)
             self.sock.send(data)
         except:
             print("Send: {}".format(data))
@@ -84,9 +84,17 @@ class LabTcpClient:
 
     def recv_data_server(self):
         """Возвращяем присланные данные"""
+        if not self.sock:
+            self.reconnect()
+
         data = self.sock.recv(self.buffer)
-        data = self.decrypt_with_private_key(data).decode("utf-8")
-        data = json.loads(data)
+        try:
+            data = self.decrypt_with_private_key(data).decode("utf-8")
+            data = json.loads(data)
+        except:
+            # Новое создание сокета
+            self.sock = None
+
         return data
 
     def encrypt_with_public_key(self, byte_message):

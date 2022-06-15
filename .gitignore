@@ -3,3 +3,4 @@ test
 app/Server/users.json
 app/Server/log_server.txt
 app/TCP_App/.buildozer/
+app/TCP_App/__pycache__/

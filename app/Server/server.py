@@ -173,6 +173,7 @@ def decrypt_with_private_key(byte_message, private_key):
 if __name__ == "__main__":
     try:
         color_print("Server started!", color="yellow")
+        color_print("Server adress: " + HOST + ":" + str(PORT), color="yellow")
         color_print("Waiting for clients...", color="yellow")
         socket_obj.bind((HOST, PORT))                   # Bind to the port
         # Now wait for client connection.

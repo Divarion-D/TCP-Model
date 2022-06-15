@@ -50,11 +50,14 @@ class LoginWindow(Screen):
                             'password': self.password.text, 'send_key': 'LOGIN'}
                 CLT.send_data_server(reg_data)
                 data = CLT.recv_data_server()
-                if data['status'] == 'SUCCESS':
-                    # Уже авторизировался и можно открыть главный интерфейс
-                    print("main menu")
+                if data:
+                    if data['status'] == 'SUCCESS':
+                        # Уже авторизировался и можно открыть главный интерфейс
+                        print("main menu")
+                    else:
+                        popFun("Error", data['message'])
                 else:
-                    popFun("Error", data['message'])
+                    popFun("Error", 'No connection to server')
             else:
                 popFun("Error", "Enter your password")
         else:
@@ -72,11 +75,14 @@ class SignupWindow(Screen):
                             'password': self.password.text, 'send_key': 'REGISTRATION'}
                 CLT.send_data_server(reg_data)
                 data = CLT.recv_data_server()
-                if data['status'] == 'SUCCESS':
-                    # Уже авторизировался и можно открыть главный интерфейс
-                    print("main menu")
+                if data:
+                    if data['status'] == 'SUCCESS':
+                        # Уже авторизировался и можно открыть главный интерфейс
+                        print("main menu")
+                    else:
+                        popFun("Error", data['message'])
                 else:
-                    popFun("Error", data['message'])
+                    popFun("Error", 'No connection to server')
             else:
                 popFun("Error", "Enter your password")
         else:

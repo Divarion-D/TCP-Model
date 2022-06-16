@@ -1,3 +1,8 @@
+# GUI for pop up window
+<P>:
+    Label:
+        size_hint : 0.2, 0.1
+        pos_hint : {"x" : 0.3, "top" : 0.8}  
 # GUI for the unauth window   
 <UnAuth>:
     FloatLayout:
@@ -25,7 +30,7 @@
 # GUI for the login window                
 <LoginWindow>:
     username : username
-    pwd : pwd
+    password : password
     FloatLayout:
         size: root.width, root.height
         Label:
@@ -42,7 +47,7 @@
             size_hint : 0.2, 0.1
             pos_hint : {"x" : 0.45, "top" : 0.8}
         TextInput:
-            id : pwd
+            id : password
             multiline : False
             size_hint : 0.3, 0.05
             pos_hint : {"x" : 0.40, "top" : 0.72}
@@ -106,8 +111,10 @@
             on_release: 
                 app.go_unauth()
                 root.manager.transition.direction = "right"
-# GUI for pop up window
-<P>:
-    Label:
-        size_hint : 0.2, 0.1
-        pos_hint : {"x" : 0.3, "top" : 0.8}  
+<FileChoise>:
+    BoxLayout:
+        Button:
+            size_hint : 0.3, 0.1
+            pos_hint : {"x" : 0.39, "top" : 0.17}
+            text: 'Send File'
+            on_release: root.file_choose()

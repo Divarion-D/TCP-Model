@@ -7,6 +7,8 @@ from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
+from kivy.properties import ListProperty
+from plyer import filechooser
 
 from labtcpclient import LabTcpClient
 
@@ -17,19 +19,17 @@ HOST = '127.0.1.1'
 PORT = 9999
 
 CLT = LabTcpClient(HOST, PORT, BUFFER_SIZE)
-
+SCREENMANAGER = ScreenManager()
 
 class PopupWindow(Widget):
     def btn(self):
         popFun()
-
 
 def popFun(title, message):
     window = Popup(title=title,
                    content=Label(text=message),
                    size_hint=(None, None), size=(400, 400))
     window.open()
-
 
 class UnAuth(Screen):
     """Экран для неавторизированного пользователя"""
@@ -50,9 +50,11 @@ class LoginWindow(Screen):
                             'password': self.password.text, 'send_key': 'LOGIN'}
                 CLT.send_data_server(reg_data)
                 data = CLT.recv_data_server()
+                print(data)
                 if data:
                     if data['status'] == 'SUCCESS':
                         # Уже авторизировался и можно открыть главный интерфейс
+                        SCREENMANAGER.current = ("FileChoise")
                         print("main menu")
                     else:
                         popFun("Error", data['message'])
@@ -62,7 +64,6 @@ class LoginWindow(Screen):
                 popFun("Error", "Enter your password")
         else:
             popFun("Error", "Enter your username")
-
 
 class SignupWindow(Screen):
     username = ObjectProperty(None)
@@ -78,6 +79,7 @@ class SignupWindow(Screen):
                 if data:
                     if data['status'] == 'SUCCESS':
                         # Уже авторизировался и можно открыть главный интерфейс
+                        SCREENMANAGER.current = ("FileChoise")
                         print("main menu")
                     else:
                         popFun("Error", data['message'])
@@ -88,9 +90,31 @@ class SignupWindow(Screen):
         else:
             popFun("Error", "Enter your username")
 
+class FileChoise(Screen):
+    selection = ListProperty([])
+
+    def file_choose(self):
+        '''
+        Вызовите plyer filechooser API для запуска действия filechooser.
+        '''
+        filechooser.open_file(on_selection=self.handle_selection)
+
+    def handle_selection(self, selection):
+        '''
+        Функция обратного вызова для обработки ответа выбора из Activity.
+        '''
+        self.selection = selection
+        print(str(selection))
+
+
+    def on_selection(self, *a, **k):
+        '''
+        Выполнить действие после выбора
+        '''
+        print(self.selection[0])
 
 SCREENS = {0: (UnAuth, "UnAuth"), 1: (
-    LoginWindow, "Login"), 2: (SignupWindow, "Signup")}
+    LoginWindow, "Login"), 2: (SignupWindow, "Signup"), 3: (FileChoise, "FileChoise")}
 
 
 class MyApp(App):
@@ -99,9 +123,9 @@ class MyApp(App):
         """Выполнить сразу после run()"""
 
         # Создание экранов
-        self.screen_manager = ScreenManager()
         for i in range(len(SCREENS)):
-            self.screen_manager.add_widget(SCREENS[i][0](name=SCREENS[i][1]))
+            SCREENMANAGER.add_widget(SCREENS[i][0](name=SCREENS[i][1]))
+        self.screen_manager = SCREENMANAGER
         return self.screen_manager
 
     def on_start(self):
@@ -131,6 +155,9 @@ class MyApp(App):
     def go_signup(self):
         """Открыть страницу Регистрации"""
         self.screen_manager.current = ("Signup")
+
+    def go_filechoise(self):
+        self.screen_manager.current = ("FileChoise")
 
     def do_quit(self):
         """Кнопка выхода из приложения"""

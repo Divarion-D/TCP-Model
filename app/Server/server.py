@@ -64,40 +64,13 @@ def on_new_client(client_socket, client_addr):
                     if send_key == 'REGISTRATION':
                         username = data['username']
                         password = data['password']
-                        clients[client_socket] = User(username, password)
-                        query = Query()
-                        if not db.search(query.username == clients[client_socket].username):
-                            # Generate salt
-                            salt_pwd = bcrypt.gensalt()
-                            data = {
-                                "username": clients[client_socket].username,
-                                "password": bcrypt.hashpw(clients[client_socket].password.encode('utf-8'), salt_pwd).decode("utf-8"),
-                            }
-                            db.insert(data)
+                        if signup_user(username, password, public_key_client):
                             client_authorize = True
-                            send_data_client(
-                                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
-                        else:
-                            send_data_client(
-                                client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client)
                     elif send_key == 'LOGIN':
                         username = data['username']
                         password = data['password']
-                        query = Query()
-                        data_user = db.get(query.username == username)
-                        if data_user:
-                            hash_pwd = data_user['password'].encode('utf-8')
-                            if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):
-                                clients[client_socket] = User(username, password)
-                                client_authorize = True
-                                send_data_client(
-                                    client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
-                            else:
-                                send_data_client(
-                                    client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client)
-                        else:
-                            send_data_client(
-                                client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client)
+                        if login_user(username, password, public_key_client):
+                            client_authorize = True
                     else:
                         send_data_client(
                             client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client)
@@ -126,31 +99,34 @@ def on_new_client(client_socket, client_addr):
 def recv_data_client(client_socket, private_key_server):
     data = client_socket.recv(BUFFER_SIZE)
     try:
-        data = decrypt_with_private_key(data, private_key_server).decode("utf-8")
+        data = decrypt_with_private_key(
+            data, private_key_server).decode("utf-8")
         try:
             return json.loads(data)
         except ValueError:
             return data
     except ValueError:
-        return data 
+        return data
+
 
 def send_data_client(client_socket, data, public_key_client):
 
     data = bytes(json.dumps(data), encoding="utf-8")
     data = encrypt_with_public_key(data, public_key_client)
-    
+
     client_socket.send(data)
 
 
 def rsa_connect(client_socket):
-    data = (client_socket.recv(BUFFER_SIZE)).decode("utf-8").replace("\r\n", '')
+    data = (client_socket.recv(BUFFER_SIZE)).decode(
+        "utf-8").replace("\r\n", '')
     if data:
         split = data.split(":")
         tmpClientPublic = split[0]
         clientPublicHash = split[1]
         tmpHashObject = hashlib.md5(bytes(tmpClientPublic, encoding="utf-8"))
         tmpHash = tmpHashObject.hexdigest()
-        
+
         if tmpHash == clientPublicHash:
             color_print(
                 "\n[!] Anonymous client's public key and public key hash matched\n", color="blue")
@@ -178,6 +154,44 @@ def decrypt_with_private_key(byte_message, private_key):
     private_key = PKCS1_OAEP.new(private_key)
     decrypted_text = private_key.decrypt(decode_encrypted_msg)
     return decrypted_text
+
+
+def signup_user(username, password, public_key_client):
+    clients[client_socket] = User(username, password)
+    query = Query()
+    if not db.search(query.username == clients[client_socket].username):
+        # Generate salt
+        salt_pwd = bcrypt.gensalt()
+        data = {
+            "username": clients[client_socket].username,
+            "password": bcrypt.hashpw(clients[client_socket].password.encode('utf-8'), salt_pwd).decode("utf-8"),
+        }
+        db.insert(data)
+        send_data_client(
+            client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+        return True
+    else:
+        send_data_client(
+            client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client)
+
+
+def login_user(username, password, public_key_client):
+    query = Query()
+    data_user = db.get(query.username == username)
+    if data_user:
+        hash_pwd = data_user['password'].encode('utf-8')
+        if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):
+            clients[client_socket] = User(
+                username, password)
+            return True
+            send_data_client(
+                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+        else:
+            send_data_client(
+                client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client)
+    else:
+        send_data_client(
+            client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client)
 
 
 if __name__ == "__main__":

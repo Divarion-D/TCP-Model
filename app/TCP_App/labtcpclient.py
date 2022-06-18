@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import socket
+import struct
 
 from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
@@ -45,7 +46,7 @@ class LabTcpClient:
         except socket.error:
             print("Unable to connect!")
             return False
-    
+
     def rsa_connect(self):
         data = f'{self.public_key.decode("utf-8")}:{self.hash_public_key}'
         self.sock.send(bytes(data, encoding="utf-8"))
@@ -65,37 +66,63 @@ class LabTcpClient:
             Serverpublic = RSA.importKey(tmpServerpublic)
             return Serverpublic
 
-
-    def send_data_server(self, data):
+    def send_data_server(self, data, is_text):
         """Отправка сообщения с помощью send."""
-        # Если нет подключения пытаемся подключится заново
+        # Prefix each message with a 8-byte length (network byte order)
         if not self.sock:
             self.reconnect()
 
-        data = bytes(json.dumps(data), encoding="utf-8")
-        try:
+        if is_text:
+            data = bytes(json.dumps(data), encoding="utf-8")
             data = self.encrypt_with_public_key(data)
-            self.sock.send(data)
+
+        try:
+            data = struct.pack('>Q', len(data)) + data
+            self.sock.sendall(data)
         except:
-            print("Send: {}".format(data))
             # Новое создание сокета
             self.sock.close()
             self.sock = None
 
-    def recv_data_server(self):
+    def recv_data_server(self, is_text):
         """Возвращяем присланные данные"""
-        if not self.sock:
-            self.reconnect()
+        # 8-byte
+        payload_size = struct.calcsize(">Q")
 
-        data = self.sock.recv(self.buffer)
+        # Read message length and unpack it into an integer
+        raw_msg_len = self.recv_all(payload_size)
+        if not raw_msg_len:
+            return None
+
+        msg_len = struct.unpack('>Q', raw_msg_len)[0]
+
+        # Read the message data
+        data = self.recv_all(msg_len)
         try:
-            data = self.decrypt_with_private_key(data).decode("utf-8")
-            data = json.loads(data)
+            if is_text:
+                data = self.decrypt_with_private_key(data).decode("utf-8")
+                try:
+                    return json.loads(data)
+                except ValueError:
+                    return data
+
+            return data
         except:
             # Новое создание сокета
             self.sock = None
 
-        return data
+    def recv_all(self, n):
+        # Helper function to recv n bytes or return None if EOF is hit
+        data = bytearray()
+
+        while len(data) < n:
+            packet = self.sock.recv(n - len(data))
+            if not packet:
+                return None
+
+            data += packet
+
+        return bytes(data)
 
     def encrypt_with_public_key(self, byte_message):
         """RSA Шифрование текста"""
@@ -133,3 +160,14 @@ class LabTcpClient:
         raw_data = None
         raw_data = self.sock.recv()
         return raw_data
+
+
+"""
+BUFFER_SIZE = 4096
+HOST = '127.0.1.1'
+PORT = 9999
+
+
+if __name__ == "__main__":
+    CLT = LabTcpClient(HOST, PORT, BUFFER_SIZE)
+"""

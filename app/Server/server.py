@@ -1,13 +1,12 @@
 import _thread as thread
-import base64
 import bcrypt
 import hashlib
-import json
 import socket
 import sys
 
+from common import send_data_client, recv_data_client, file_upload
+
 from Crypto import Random
-from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from lazyme.string import color_print
 from tinydb import Query, TinyDB
@@ -56,7 +55,7 @@ def on_new_client(client_socket, client_addr):
         public_key_client = rsa_connect(client_socket)
         while True:
             if not client_authorize:
-                data = recv_data_client(client_socket, private_key_imp)
+                data = recv_data_client(client_socket, private_key_imp, True)
                 if data:
                     send_key = data['send_key']
                     print(client_addr)
@@ -73,15 +72,17 @@ def on_new_client(client_socket, client_addr):
                             client_authorize = True
                     else:
                         send_data_client(
-                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client)
+                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client, True)
             else:
                 try:
-                    data = recv_data_client(client_socket, private_key_imp)
+                    data = recv_data_client(client_socket, private_key_imp, True)
                     if data:
                         send_key = data['send_key']
                         print(send_key + " auth")  # debug
                         if send_key == "TEST":
                             print('authorize')
+                        elif send_key == "FILE UPLOAD":
+                            file_upload(clients, client_socket, data, public_key_client, private_key_imp)
                     else:
                         client_socket.close()
                         print(
@@ -95,26 +96,6 @@ def on_new_client(client_socket, client_addr):
         print(f"{client_addr} has disconnected")
         return True
 
-
-def recv_data_client(client_socket, private_key_server):
-    data = client_socket.recv(BUFFER_SIZE)
-    try:
-        data = decrypt_with_private_key(
-            data, private_key_server).decode("utf-8")
-        try:
-            return json.loads(data)
-        except ValueError:
-            return data
-    except ValueError:
-        return data
-
-
-def send_data_client(client_socket, data, public_key_client):
-
-    data = bytes(json.dumps(data), encoding="utf-8")
-    data = encrypt_with_public_key(data, public_key_client)
-
-    client_socket.send(data)
 
 
 def rsa_connect(client_socket):
@@ -140,22 +121,6 @@ def rsa_connect(client_socket):
             print(f"{client_addr} has disconnected")
 
 
-def encrypt_with_public_key(byte_message, public_key):
-    """RSA Шифрование текста"""
-    encryptor = PKCS1_OAEP.new(public_key)
-    encrypted_msg = encryptor.encrypt(byte_message)
-    encoded_encrypted_msg = base64.b64encode(encrypted_msg)
-    return encoded_encrypted_msg
-
-
-def decrypt_with_private_key(byte_message, private_key):
-    """RSA Расшифровка текста"""
-    decode_encrypted_msg = base64.b64decode(byte_message)
-    private_key = PKCS1_OAEP.new(private_key)
-    decrypted_text = private_key.decrypt(decode_encrypted_msg)
-    return decrypted_text
-
-
 def signup_user(username, password, public_key_client):
     clients[client_socket] = User(username, password)
     query = Query()
@@ -168,11 +133,11 @@ def signup_user(username, password, public_key_client):
         }
         db.insert(data)
         send_data_client(
-            client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+            client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client, True)
         return True
     else:
         send_data_client(
-            client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client)
+            client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client, True)
 
 
 def login_user(username, password, public_key_client):
@@ -183,15 +148,15 @@ def login_user(username, password, public_key_client):
         if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):
             clients[client_socket] = User(
                 username, password)
-            return True
             send_data_client(
-                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client)
+                client_socket, {'message': "Successfully!", 'status': 'SUCCESS'}, public_key_client, True)
+            return True
         else:
             send_data_client(
-                client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client)
+                client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client, True)
     else:
         send_data_client(
-            client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client)
+            client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client, True)
 
 
 if __name__ == "__main__":

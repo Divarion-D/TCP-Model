@@ -1,4 +1,4 @@
-from os import _exit
+import os
 
 import kivy
 from kivy.app import App
@@ -48,14 +48,13 @@ class LoginWindow(Screen):
             if self.password.text != "":
                 reg_data = {'username': self.username.text,
                             'password': self.password.text, 'send_key': 'LOGIN'}
-                CLT.send_data_server(reg_data)
-                data = CLT.recv_data_server()
+                CLT.send_data_server(reg_data, True)
+                data = CLT.recv_data_server(True)
                 print(data)
                 if data:
                     if data['status'] == 'SUCCESS':
                         # Уже авторизировался и можно открыть главный интерфейс
                         SCREENMANAGER.current = ("FileChoise")
-                        print("main menu")
                     else:
                         popFun("Error", data['message'])
                 else:
@@ -74,8 +73,8 @@ class SignupWindow(Screen):
             if self.password.text != "":
                 reg_data = {'username': self.username.text,
                             'password': self.password.text, 'send_key': 'REGISTRATION'}
-                CLT.send_data_server(reg_data)
-                data = CLT.recv_data_server()
+                CLT.send_data_server(reg_data, True)
+                data = CLT.recv_data_server(True)
                 if data:
                     if data['status'] == 'SUCCESS':
                         # Уже авторизировался и можно открыть главный интерфейс
@@ -100,18 +99,19 @@ class FileChoise(Screen):
         filechooser.open_file(on_selection=self.handle_selection)
 
     def handle_selection(self, selection):
-        '''
-        Функция обратного вызова для обработки ответа выбора из Activity.
-        '''
+        # Функция обратного вызова для обработки ответа выбора из Activity.
         self.selection = selection
-        print(str(selection))
+        file_name = os.path.basename(self.selection[0])
+        data = {'file_name': file_name, 'send_key': 'FILE UPLOAD'}
 
+        with open(file_name, 'rb') as f:
+            data_file = f.read()
+        
+        CLT.send_data_server(data, True)
+        if CLT.recv_data_server(True)['status'] == 'OK':
+            CLT.send_data_server(data_file, False)
+        
 
-    def on_selection(self, *a, **k):
-        '''
-        Выполнить действие после выбора
-        '''
-        print(self.selection[0])
 
 SCREENS = {0: (UnAuth, "UnAuth"), 1: (
     LoginWindow, "Login"), 2: (SignupWindow, "Signup"), 3: (FileChoise, "FileChoise")}
@@ -166,7 +166,7 @@ class MyApp(App):
         MyApp.get_running_app().stop()
 
         # Extinction de tout
-        _exit(0)
+        os._exit(0)
 
 
 if __name__ == "__main__":

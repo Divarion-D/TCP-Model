@@ -4,3 +4,4 @@ app/Server/log_server.txt
 app/TCP_App/__pycache__/
 app/TCP_App/.buildozer
 app/Server/__pycache__/common.cpython-38.pyc
+app/Server/file_hosting/test.mp4

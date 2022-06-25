@@ -1,6 +1,5 @@
 test
-application/Server/file_hosting/test.mp4
 application/Server/log_server.txt
 application/Server/users.json
 *__pycache__
-application/TCP_App/test.mp4
+*.mp4

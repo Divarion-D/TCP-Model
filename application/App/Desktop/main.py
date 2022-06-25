@@ -2,7 +2,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from application.TCP_App.Common import LabTcpClient
+from Common import LabTcpClient
 from Desktop.design.auth import Ui_Auth
 from Desktop.design.file_send import Ui_File_send
 from PySide2 import QtWidgets
@@ -90,7 +90,7 @@ class File_send(QtWidgets.QMainWindow, Ui_File_send):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    auth = Auth()
-    auth.show()
-    sys.exit(app.exec_())
+    app = QtWidgets.QApplication(sys.argv) 
+    auth = Auth() # Create a new window
+    auth.show() # show window
+    sys.exit(app.exec_()) #Run application

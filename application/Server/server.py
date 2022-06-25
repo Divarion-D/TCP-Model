@@ -3,20 +3,21 @@ import bcrypt
 import hashlib
 import socket
 import sys
+import sqlite3
 
 from common import send_data_client, recv_data_client, file_upload
 
 from Crypto import Random
 from Crypto.PublicKey import RSA
 from lazyme.string import color_print
-from tinydb import Query, TinyDB
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 9999
 MAX_CLIENTS = 99
 BUFFER_SIZE = 4096
 clients = {}
-db = TinyDB('users.json')
+db_con = sqlite3.connect('database.db', check_same_thread=False)
+db_cur = db_con.cursor()
 socket_obj = socket.socket()
 
 RSAkey = RSA.generate(1024, Random.new().read)
@@ -26,6 +27,8 @@ private_key_imp = RSA.importKey(private_key)
 
 hash_public_key = hashlib.md5(public_key).hexdigest()
 
+db_cur.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)''')
+db_con.commit()
 
 class User(object):
     def __init__(self, username, password):
@@ -123,41 +126,29 @@ def rsa_connect(client_socket):
 
 def signup_user(username, password, public_key_client):
     clients[client_socket] = User(username, password)
-    query = Query()
-    if not db.search(query.username == clients[client_socket].username):
-        # Generate salt
-        salt_pwd = bcrypt.gensalt()
-        data = {
-            "username": clients[client_socket].username,
-            "password": bcrypt.hashpw(clients[client_socket].password.encode('utf-8'), salt_pwd).decode("utf-8"),
-        }
-        db.insert(data)
-        send_data_client(
-            client_socket, {'message': "Successfully!", 'status': 'OK'}, public_key_client, True)
-        return True
+    if db_cur.execute('''SELECT * FROM users WHERE username = ?''', (username,)).fetchone(): # check username exist
+        send_data_client(client_socket, {'message': "Username already exist", 'status': 'ERROR'}, public_key_client, True)
     else:
-        send_data_client(
-            client_socket, {'message': "Username aloved!", 'status': 'ERROR'}, public_key_client, True)
+        hash_pwd = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()) # hash password
+        db_cur.execute('''INSERT INTO users(username, password) VALUES(?, ?)''', (username, hash_pwd)) # insert username and password
+        db_con.commit() # commit to database
+        send_data_client(client_socket, {'message': "Successfully!", 'status': 'OK'}, public_key_client, True)
+        return True
 
 
 def login_user(username, password, public_key_client):
-    query = Query()
-    data_user = db.get(query.username == username)
-    if data_user:
-        hash_pwd = data_user['password'].encode('utf-8')
-        if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):
-            clients[client_socket] = User(
-                username, password)
-            send_data_client(
-                client_socket, {'message': "Successfully!", 'status': 'OK'}, public_key_client, True)
+    # get data from database for user
+    data = db_cur.execute('''SELECT * FROM users WHERE username = ?''', (username,)).fetchone()
+    if data:
+        hash_pwd = data[2] # get hash password from database
+        if bcrypt.checkpw(password.encode('utf-8'), hash_pwd): # check password
+            send_data_client(client_socket, {'message': "Successfully!", 'status': 'OK'}, public_key_client, True)
             return True
         else:
-            send_data_client(
-                client_socket, {'message': "Invalid password!", 'status': 'ERROR'}, public_key_client, True)
+            send_data_client(client_socket, {'message': "Wrong password", 'status': 'ERROR'}, public_key_client, True)
     else:
-        send_data_client(
-            client_socket, {'message': "Invalid login!", 'status': 'ERROR'}, public_key_client, True)
-
+        send_data_client(client_socket, {'message': "Username not exist", 'status': 'ERROR'}, public_key_client, True)
+    
 
 if __name__ == "__main__":
     try:

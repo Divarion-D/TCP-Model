@@ -1,11 +1,10 @@
 import _thread as thread
-import bcrypt
+
 import hashlib
 import socket
 import sys
-import sqlite3
 
-from common import send_data_client, recv_data_client, file_upload
+from common import *
 
 from Crypto import Random
 from Crypto.PublicKey import RSA
@@ -16,9 +15,9 @@ PORT = 9999
 MAX_CLIENTS = 99
 BUFFER_SIZE = 4096
 clients = {}
-db_con = sqlite3.connect('database.db', check_same_thread=False)
-db_cur = db_con.cursor()
 socket_obj = socket.socket()
+
+db = DB()
 
 RSAkey = RSA.generate(1024, Random.new().read)
 public_key = RSAkey.publickey().exportKey()
@@ -26,9 +25,6 @@ private_key = RSAkey.exportKey()
 private_key_imp = RSA.importKey(private_key)
 
 hash_public_key = hashlib.md5(public_key).hexdigest()
-
-db_cur.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)''')
-db_con.commit()
 
 class User(object):
     def __init__(self, username, password):
@@ -53,7 +49,6 @@ sys.stdout = Logger("log_server.txt")
 
 
 def on_new_client(client_socket, client_addr):
-    try:
         client_authorize = False
         public_key_client = rsa_connect(client_socket)
         while True:
@@ -67,11 +62,13 @@ def on_new_client(client_socket, client_addr):
                         username = data['username']
                         password = data['password']
                         if signup_user(username, password, public_key_client):
+                            clients[client_socket] = {'username': username, 'password': password}
                             client_authorize = True
                     elif send_key == 'LOGIN':
                         username = data['username']
                         password = data['password']
                         if login_user(username, password, public_key_client):
+                            clients[client_socket] = {'username': username, 'password': password}
                             client_authorize = True
                     else:
                         send_data_client(
@@ -89,15 +86,14 @@ def on_new_client(client_socket, client_addr):
                     else:
                         client_socket.close()
                         print(
-                            f"{clients[client_socket].username} has disconnected")
+                            f"{clients[client_socket]['username']} has disconnected")
+                        del clients[client_socket]
                 except ConnectionResetError:
                     print(
-                        f"Connection reset by {clients[client_socket].username}")
+                        f"Connection reset by {clients[client_socket]['username']}")
+                    del clients[client_socket]
                     continue
-    except Exception:
-        client_socket.close()
-        print(f"{client_addr} has disconnected")
-        return True
+
 
 
 
@@ -126,19 +122,17 @@ def rsa_connect(client_socket):
 
 def signup_user(username, password, public_key_client):
     clients[client_socket] = User(username, password)
-    if db_cur.execute('''SELECT * FROM users WHERE username = ?''', (username,)).fetchone(): # check username exist
+    if db.check_username_exist:
         send_data_client(client_socket, {'message': "Username already exist", 'status': 'ERROR'}, public_key_client, True)
     else:
-        hash_pwd = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()) # hash password
-        db_cur.execute('''INSERT INTO users(username, password) VALUES(?, ?)''', (username, hash_pwd)) # insert username and password
-        db_con.commit() # commit to database
+        db.add_user(username, password) # add user to database
         send_data_client(client_socket, {'message': "Successfully!", 'status': 'OK'}, public_key_client, True)
         return True
 
 
 def login_user(username, password, public_key_client):
     # get data from database for user
-    data = db_cur.execute('''SELECT * FROM users WHERE username = ?''', (username,)).fetchone()
+    data = db.get_user(username)
     if data:
         hash_pwd = data[2] # get hash password from database
         if bcrypt.checkpw(password.encode('utf-8'), hash_pwd): # check password
@@ -152,6 +146,7 @@ def login_user(username, password, public_key_client):
 
 if __name__ == "__main__":
     try:
+        file_upload_filehosting()
         color_print("Server started!", color="yellow")
         color_print("Server adress: " + HOST + ":" + str(PORT), color="yellow")
         color_print("Waiting for clients...", color="yellow")

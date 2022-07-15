@@ -84,9 +84,14 @@ class File_send(QtWidgets.QMainWindow, Ui_File_send):
                     data_file = f.read()
                 
                 CLT.send_data_server(data, True)
-                if CLT.recv_data_server(True)['status'] == 'OK':
-                    CLT.send_data_server(data_file, False)
-
+                # ждать ответа от сервера
+                data = CLT.recv_data_server(True)
+                if data:
+                    if data['status'] == 'OK':
+                        CLT.send_data_server(data_file, False)                        
+                    else:
+                        self.dialog.setText(data['message'])
+                        self.dialog.exec_()
 
 
 if __name__ == '__main__':

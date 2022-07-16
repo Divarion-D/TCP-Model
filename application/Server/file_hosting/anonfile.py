@@ -1,16 +1,20 @@
 import requests
 import os
 from lxml import html
+import sys
+
 
 class AnonFile:
-    def UploadFile(file_name):
+    def UploadFile(self, file_name):
         file_data = {'file': open(file_name, 'rb')}
         file_url = 'https://api.anonfiles.com/upload'
         file_response = requests.post(file_url, files=file_data)
         file_response_json = file_response.json()
-        return file_response_json
+        file_id = file_response_json['data']['file']['metadata']['id']
+        return file_id
 
-    def DownloadFile(file_url):
+
+    def DownloadFile(self, file_url):
         link = str.replace(file_url, "\n", "")
         page = requests.get(link)
         tree = html.fromstring(page.content)

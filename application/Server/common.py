@@ -1,16 +1,18 @@
-import struct
-import json
 import base64
+import json
 import os
-import sys
+import random
 import sqlite3
+import string
+import struct
+import sys
+
 import bcrypt
-
-
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from file_hosting.anonfile import AnonFile
 from Crypto.Cipher import PKCS1_OAEP
+
+from file_hosting.anonfile import AnonFile 
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Добавляем путь до папки с модулями
 
 
 class DB:
@@ -18,8 +20,12 @@ class DB:
         self.db = sqlite3.connect('database.db', check_same_thread=False)
         self.cur = self.db.cursor()
 
-        self.db.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)''')
-        self.db.execute('''CREATE TABLE IF NOT EXISTS users_file(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, file_name TEXT, file_host TEXT, file_url TEXT)''')
+        self.db.execute(
+            '''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)''')
+        # remove table users_file
+        self.db.execute('''DROP TABLE IF EXISTS users_file''')
+        self.db.execute(
+            '''CREATE TABLE IF NOT EXISTS users_file(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, file_name TEXT, file_host TEXT, file_id TEXT, file_key TEXT)''')
         self.db.commit()
 
     def check_username_exist(self, username):
@@ -27,13 +33,20 @@ class DB:
         return self.cur.fetchone() is not None
 
     def add_user(self, username, password):
-        hash_pwd = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()) # hash password
-        self.cur.execute("INSERT INTO users(username, password) VALUES(?, ?)", (username, hash_pwd))
+        hash_pwd = bcrypt.hashpw(password.encode(
+            'utf-8'), bcrypt.gensalt())  # hash password
+        self.cur.execute(
+            "INSERT INTO users(username, password) VALUES(?, ?)", (username, hash_pwd))
         self.db.commit()
 
     def get_user(self, username):
         self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
         return self.cur.fetchone()
+
+    def add_file(self, username, file_name, file_host, file_id, file_key):
+        self.cur.execute("INSERT INTO users_file(username, file_name, file_host, file_id, file_key) VALUES(?, ?, ?, ?, ?)",
+                         (username, file_name, file_host, file_id, file_key))
+        self.db.commit()
 
 
 def send_data_client(client_socket, data, public_key_client, is_text):
@@ -100,31 +113,49 @@ def decrypt_with_private_key(byte_message, private_key):
     return decrypted_text
 
 
-def file_upload(clients, client_socket, recv_data, public_key_client, private_key_imp):
-    file_name = recv_data['file_name'] # получаем название файла
-    send_data_client(client_socket, {'status': 'OK'}, public_key_client, True)
+class File:
+    def __init__(self):
+        self.db_class = DB()
+        self.anon_file = AnonFile()
 
-    path = "file_tmp/" + clients[client_socket]['username'] + "/"
+    def get_random_string(self, length):
+        '''
+        Generate a random string of fixed length
+        '''
+        result_str = ''.join(random.choice(string.ascii_letters)
+                             for i in range(length))
+        return result_str
 
-    if not os.path.exists(path):
-        os.makedirs(path)
+    def file_upload(self, clients, client_socket, recv_data, public_key_client, private_key_imp):
+        '''
+        Client upload file
+        '''
+        file_name = recv_data['file_name']  # get file name
+        send_data_client(
+            client_socket, {'status': 'OK'}, public_key_client, True) # send status OK
 
-    data = recv_data_client(client_socket, private_key_imp, False)
-    with open(os.path.join(path, file_name), 'wb') as f:
-        f.write(data)
-    return True
+        path = "file_tmp_upload/" + clients[client_socket]['username'] + "/" # path to file
 
-def file_upload_filehosting():
-    # get list folders name from file_temp
-    path = "file_tmp/"
-    folders = os.listdir(path)
-    for folder in folders:
-        # get list files name from folder
-        path_folder = path + folder
-        files = os.listdir(path_folder)
-        for file in files:
-            # upload file to anonfile
-            file_path = path_folder + "/" + file
-            anonfile = AnonFile()
-            json = anonfile.UploadFile(file_path)
-            print(json)
+        if not os.path.exists(path): # if folder not exist
+            os.makedirs(path) # create folder
+
+        data = recv_data_client(client_socket, private_key_imp, False) # get file data
+        with open(os.path.join(path, file_name), 'wb') as f:
+            f.write(data) # write file
+        return True
+
+    def file_upload_filehosting(self):
+        '''
+        Function loop for upload file to filehosting 
+        '''
+        path = "file_tmp_upload/" # path to file
+        folders = os.listdir(path) # get list of folders
+        for folder in folders: 
+            path_folder = path + folder # path to folder
+            files = os.listdir(path_folder) # get list of files
+            for file in files: 
+                hash_key = self.get_random_string(16) # generate hash key
+                file_path = path_folder + "/" + file # path to file
+                file_id = self.anon_file.UploadFile(file_path) # upload file
+                self.db_class.add_file( 
+                    folder, file, 'anonfile', file_id, str(hash_key)) # add file to DB

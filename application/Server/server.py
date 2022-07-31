@@ -55,36 +55,13 @@ def on_new_client(client_socket, client_addr):
         client_authorize = False
         public_key_client = rsa_connect(client_socket)
         while True:
-            if not client_authorize:
-                data = recv_data_client(client_socket, private_key_imp, True)
-                if data:
-                    send_key = data['send_key']
-                    print(client_addr)
-                    print(send_key + " not auth")  # debug
-                    if send_key == 'SIGNUP':
-                        username = data['username']
-                        password = data['password']
-                        if signup_user(username, password, public_key_client):
-                            clients[client_socket] = {
-                                'username': username, 'password': password}
-                            client_authorize = True
-                    elif send_key == 'LOGIN':
-                        username = data['username']
-                        password = data['password']
-                        if login_user(username, password, public_key_client):
-                            clients[client_socket] = {
-                                'username': username, 'password': password}
-                            client_authorize = True
-                    else:
-                        send_data_client(
-                            client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client, True)
-            else:
+            if client_authorize:
                 try:
-                    data = recv_data_client(
-                        client_socket, private_key_imp, True)
-                    if data:
+                    if data := recv_data_client(
+                        client_socket, private_key_imp, True
+                    ):
                         send_key = data['send_key']
-                        print(send_key + " auth")  # debug
+                        print(f"{send_key} auth")
                         if send_key == "TEST":
                             print('authorize')
                         elif send_key == "FILE UPLOAD":
@@ -99,7 +76,27 @@ def on_new_client(client_socket, client_addr):
                     print(
                         f"Connection reset by {clients[client_socket]['username']}")
                     del clients[client_socket]
-                    continue
+            elif data := recv_data_client(client_socket, private_key_imp, True):
+                send_key = data['send_key']
+                print(client_addr)
+                print(f"{send_key} not auth")
+                if send_key == 'SIGNUP':
+                    username = data['username']
+                    password = data['password']
+                    if signup_user(username, password, public_key_client):
+                        clients[client_socket] = {
+                            'username': username, 'password': password}
+                        client_authorize = True
+                elif send_key == 'LOGIN':
+                    username = data['username']
+                    password = data['password']
+                    if login_user(username, password, public_key_client):
+                        clients[client_socket] = {
+                            'username': username, 'password': password}
+                        client_authorize = True
+                else:
+                    send_data_client(
+                        client_socket, {'message': "Not Authorize", 'status': 'ERROR'}, public_key_client, True)
     except Exception:
         client_socket.close()
         print(f"{client_addr} has disconnected")
@@ -107,9 +104,11 @@ def on_new_client(client_socket, client_addr):
 
 
 def rsa_connect(client_socket):
-    data = (client_socket.recv(BUFFER_SIZE)).decode(
-        "utf-8").replace("\r\n", '')
-    if data:
+    if (
+        data := (client_socket.recv(BUFFER_SIZE))
+        .decode("utf-8")
+        .replace("\r\n", '')
+    ):
         split = data.split(":")
         tmpClientPublic = split[0]
         clientPublicHash = split[1]
@@ -142,9 +141,7 @@ def signup_user(username, password, public_key_client):
 
 
 def login_user(username, password, public_key_client):
-    # get data from database for user
-    data = db.get_user(username)
-    if data:
+    if data := db.get_user(username):
         hash_pwd = data[2]  # get hash password from database
         if bcrypt.checkpw(password.encode('utf-8'), hash_pwd):  # check password
             send_data_client(client_socket, {
@@ -161,7 +158,7 @@ def login_user(username, password, public_key_client):
 if __name__ == "__main__":
     try:
         color_print("Server started!", color="yellow")
-        color_print("Server adress: " + HOST + ":" + str(PORT), color="yellow")
+        color_print(f"Server adress: {HOST}:{str(PORT)}", color="yellow")
         color_print("Waiting for clients...", color="yellow")
         socket_obj.bind((HOST, PORT))                   # Bind to the port
         # Now wait for client connection.

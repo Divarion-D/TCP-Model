@@ -10,8 +10,7 @@ class AnonFile:
         file_url = 'https://api.anonfiles.com/upload'
         file_response = requests.post(file_url, files=file_data)
         file_response_json = file_response.json()
-        file_id = file_response_json['data']['file']['metadata']['id']
-        return file_id
+        return file_response_json['data']['file']['metadata']['id']
 
 
     def DownloadFile(self, file_url):

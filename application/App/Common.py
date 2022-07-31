@@ -34,7 +34,7 @@ class LabTcpClient:
             self.sock.settimeout(5)
             if self.connect_sock():
                 self.public_key_serv = self.rsa_connect()
-                print("Server conected create {}".format(self.server_address))
+                print(f"Server conected create {self.server_address}")
 
     def connect_sock(self):
         """Пытаемся подключится."""
@@ -59,12 +59,10 @@ class LabTcpClient:
         tmpHashObject = hashlib.md5(bytes(tmpServerpublic, encoding="utf-8"))
         tmpHash = tmpHashObject.hexdigest()
 
-        if tmpHash != serverPublicHash:
-            self.sock.close()
-            self.sock = None
-        else:
-            Serverpublic = RSA.importKey(tmpServerpublic)
-            return Serverpublic
+        if tmpHash == serverPublicHash:
+            return RSA.importKey(tmpServerpublic)
+        self.sock.close()
+        self.sock = None
 
     def send_data_server(self, data, is_text):
         """Отправка сообщения с помощью send."""
@@ -116,11 +114,11 @@ class LabTcpClient:
         data = bytearray()
 
         while len(data) < n:
-            packet = self.sock.recv(n - len(data))
-            if not packet:
-                return None
+            if packet := self.sock.recv(n - len(data)):
+                data += packet
 
-            data += packet
+            else:
+                return None
 
         return bytes(data)
 
@@ -128,15 +126,13 @@ class LabTcpClient:
         """RSA Шифрование текста"""
         encryptor = PKCS1_OAEP.new(self.public_key_serv)
         encrypted_msg = encryptor.encrypt(byte_message)
-        encoded_encrypted_msg = base64.b64encode(encrypted_msg)
-        return encoded_encrypted_msg
+        return base64.b64encode(encrypted_msg)
 
     def decrypt_with_private_key(self, byte_message):
         """RSA Расшифровка текста"""
         decode_encrypted_msg = base64.b64decode(byte_message)
         private_key = PKCS1_OAEP.new(self.private_key_imp)
-        decrypted_text = private_key.decrypt(decode_encrypted_msg)
-        return decrypted_text
+        return private_key.decrypt(decode_encrypted_msg)
 
     def reconnect(self):
         """Переподключится."""

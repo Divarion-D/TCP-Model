@@ -2,16 +2,18 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Common import LabTcpClient
+
+from Common import TcpClient
 from Desktop.design.auth import Ui_Auth
 from Desktop.design.file_send import Ui_File_send
 from PySide2 import QtWidgets
 
 BUFFER_SIZE = 4096
 HOST = '127.0.1.1'
-PORT = 9999
+PORT = 9998
 
-CLT = LabTcpClient(HOST, PORT, BUFFER_SIZE)
+CLT = TcpClient(HOST, PORT, BUFFER_SIZE)
+
 
 class Auth(QtWidgets.QMainWindow, Ui_Auth):
     def __init__(self):
@@ -30,8 +32,7 @@ class Auth(QtWidgets.QMainWindow, Ui_Auth):
         if sender:
             if self.lineEdit.text() != "":
                 if self.lineEdit_2.text() != "":
-                    reg_data = {'username': self.lineEdit.text(),
-                            'password': self.lineEdit_2.text()}
+                    reg_data = {'username': self.lineEdit.text(), 'password': self.lineEdit_2.text()}
                     if sender == self.pushButton:
                         reg_data['send_key'] = 'LOGIN'
                         CLT.send_data_server(reg_data, True)
@@ -44,9 +45,9 @@ class Auth(QtWidgets.QMainWindow, Ui_Auth):
                     if data:
                         if data['status'] == 'OK':
                             # Уже авторизировался и можно открыть главный интерфейс
-                            self.close() # Закрываем окно
-                            self.dialog = File_send() # Создаем окно
-                            self.dialog.show() # Отображаем окно
+                            self.close()  # Закрываем окно
+                            self.dialog = File_send()  # Создаем окно
+                            self.dialog.show()  # Отображаем окно
                         else:
                             self.dialog.setText(data['message'])
                             self.dialog.exec_()
@@ -61,6 +62,7 @@ class Auth(QtWidgets.QMainWindow, Ui_Auth):
                 self.dialog.setText("Введите логин")
                 self.dialog.exec_()
 
+
 class File_send(QtWidgets.QMainWindow, Ui_File_send):
     def __init__(self):
         super().__init__()
@@ -71,7 +73,7 @@ class File_send(QtWidgets.QMainWindow, Ui_File_send):
         self.dialog = QtWidgets.QMessageBox()
 
         self.pushButton.clicked.connect(self.send_file)
-    
+
     def send_file(self):
         sender = self.sender()
         if sender == self.pushButton:
@@ -82,20 +84,20 @@ class File_send(QtWidgets.QMainWindow, Ui_File_send):
 
                 with open(path[0], 'rb') as f:
                     data_file = f.read()
-                
+
                 CLT.send_data_server(data, True)
                 # ждать ответа от сервера
                 data = CLT.recv_data_server(True)
                 if data:
                     if data['status'] == 'OK':
-                        CLT.send_data_server(data_file, False)                        
+                        CLT.send_data_server(data_file, False)
                     else:
                         self.dialog.setText(data['message'])
                         self.dialog.exec_()
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv) 
-    auth = Auth() # Create a new window
-    auth.show() # show window
-    sys.exit(app.exec_()) #Run application
+    app = QtWidgets.QApplication(sys.argv)
+    auth = Auth()  # Create a new window
+    auth.show()  # show window
+    sys.exit(app.exec_())  # Run application

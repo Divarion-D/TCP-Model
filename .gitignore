@@ -2,3 +2,4 @@ application/Server/log_server.txt
 application/Server/database.db
 *__pycache__
 *.mp4
+*.log

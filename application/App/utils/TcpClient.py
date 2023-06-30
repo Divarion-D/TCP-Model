@@ -155,8 +155,7 @@ class TcpClient:
         """Возвращает полученные необработанные данные."""
 
         raw_data = None
-        raw_data = self.sock.recv()
-        return raw_data
+        return self.sock.recv()
 
 
 """

@@ -50,11 +50,11 @@ def receive_all(client_socket, n):
     data = bytearray()
 
     while len(data) < n:
-        packet = client_socket.recv(n - len(data))
-        if not packet:
-            return None
+        if packet := client_socket.recv(n - len(data)):
+            data += packet
 
-        data += packet
+        else:
+            return None
 
     return bytes(data)
 
@@ -63,16 +63,14 @@ def encrypt_with_public_key(byte_message, public_key):
     """RSA Шифрование текста"""
     encryptor = PKCS1_OAEP.new(public_key)
     encrypted_msg = encryptor.encrypt(byte_message)
-    encoded_encrypted_msg = base64.b64encode(encrypted_msg)
-    return encoded_encrypted_msg
+    return base64.b64encode(encrypted_msg)
 
 
 def decrypt_with_private_key(byte_message, private_key):
     """RSA Расшифровка текста"""
     decode_encrypted_msg = base64.b64decode(byte_message)
     private_key = PKCS1_OAEP.new(private_key)
-    decrypted_text = private_key.decrypt(decode_encrypted_msg)
-    return decrypted_text
+    return private_key.decrypt(decode_encrypted_msg)
 
 
 class File:
@@ -83,9 +81,7 @@ class File:
         '''
         Generate a random string of fixed length
         '''
-        result_str = ''.join(random.choice(string.ascii_letters)
-                             for i in range(length))
-        return result_str
+        return ''.join(random.choice(string.ascii_letters) for _ in range(length))
 
     def file_upload(self, clients, client_socket, recv_data, public_key_client, private_key_imp):
         '''

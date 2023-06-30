@@ -25,9 +25,7 @@ class DB:
         hash_pwd = bcrypt.hashpw(password.encode(
             'utf-8'), bcrypt.gensalt())
 
-        user_id = qb.insert('groups', {'users': username, 'password': hash_pwd}).go()
-        return user_id
+        return qb.insert('groups', {'users': username, 'password': hash_pwd}).go()
 
     def get_user(self, username):
-        result = qb.select('users').where([['username', '=', username]]).one()
-        return result
+        return qb.select('users').where([['username', '=', username]]).one()

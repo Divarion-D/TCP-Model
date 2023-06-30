@@ -123,6 +123,7 @@ class TcpClient:
 
     def encrypt_with_public_key(self, byte_message):
         """RSA Шифрование текста"""
+        print(byte_message)
         encryptor = PKCS1_OAEP.new(self.public_key_serv)
         encrypted_msg = encryptor.encrypt(byte_message)
         encoded_encrypted_msg = base64.b64encode(encrypted_msg)

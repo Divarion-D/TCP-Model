@@ -4,16 +4,18 @@ import socket
 import sys
 
 import bcrypt
-import utils.common as common
 from Crypto import Random
 from Crypto.PublicKey import RSA
 from lazyme.string import color_print
+
+import utils.common as common
 from utils.db import DB
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 9998
 MAX_CLIENTS = 99
 BUFFER_SIZE = 4096
+
 clients = {}
 socket_obj = socket.socket()
 
@@ -167,7 +169,6 @@ def rsa_connect(client_socket):
 
 
 def signup_user(username, password, public_key_client):
-    print(User(username, password))
     clients[client_socket] = User(username, password)
     if db.check_username_exist(username):
         common.send_data_client(

@@ -22,7 +22,7 @@ socket_obj = socket.socket()
 db = DB()
 file = common.File()
 
-RSAkey = RSA.generate(1024, Random.new().read)
+RSAkey = RSA.generate(2048, Random.new().read)
 public_key = RSAkey.publickey().exportKey()
 private_key = RSAkey.exportKey()
 private_key_imp = RSA.importKey(private_key)

@@ -9,7 +9,7 @@ from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
-logging.basicConfig(filename='log_client.log')
+logging.basicConfig(filename="log_client.log")
 
 
 class TcpClient:
@@ -35,7 +35,7 @@ class TcpClient:
             self.sock.settimeout(5)
             if self.connect_sock():
                 self.public_key_serv = self.rsa_connect()
-                print("Server connected: create {}".format(self.server_address))
+                print(f"Server connected: create {self.server_address}")
 
     def connect_sock(self):
         """
@@ -57,14 +57,14 @@ class TcpClient:
         # receive server public key, hash of public, eight bytes, and hash of eight bytes
         response = self.sock.recv(self.buffer_size).decode("utf-8")
         server_public_key_str, server_public_key_hash = response.split(":")
-        tmp_hash = hashlib.md5(bytes(server_public_key_str, encoding="utf-8")).hexdigest()
-        if tmp_hash != server_public_key_hash:
-            self.sock.close()
-            self.sock = None
-            return None
-        else:
-            server_public_key = RSA.importKey(server_public_key_str)
-            return server_public_key
+        tmp_hash = hashlib.md5(
+            bytes(server_public_key_str, encoding="utf-8")
+        ).hexdigest()
+        if tmp_hash == server_public_key_hash:
+            return RSA.importKey(server_public_key_str)
+        self.sock.close()
+        self.sock = None
+        return None
 
     def send_data_server(self, data, is_text):
         """Send message using send method."""
@@ -76,7 +76,7 @@ class TcpClient:
             data = self.encrypt_with_public_key(data)
         try:
             data_len = len(data)
-            data_with_len = struct.pack('>Q', data_len) + data
+            data_with_len = struct.pack(">Q", data_len) + data
             self.sock.sendall(data_with_len)
         except Exception as e:
             # Reconnect and try again if there was an error
@@ -95,17 +95,16 @@ class TcpClient:
         raw_msg_len = self.receive_all(payload_bytes)
         if not raw_msg_len:
             return None
-        message_length = struct.unpack('>Q', raw_msg_len)[0]
+        message_length = struct.unpack(">Q", raw_msg_len)[0]
         # Read the message data
         data = self.receive_all(message_length)
         try:
-            if is_text_data:
-                data = self.decrypt_with_private_key(data).decode("utf-8")
-                try:
-                    return json.loads(data)
-                except json.JSONDecodeError:
-                    return data
-            else:
+            if not is_text_data:
+                return data
+            data = self.decrypt_with_private_key(data).decode("utf-8")
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
                 return data
         except Exception:
             # Creating a new socket
@@ -115,10 +114,10 @@ class TcpClient:
         # Helper function to receive n bytes or return None if EOF is hit
         received_data = bytearray()
         while len(received_data) < n:
-            received_packet = self.sock.recv(n - len(received_data))
-            if not received_packet:
+            if received_packet := self.sock.recv(n - len(received_data)):
+                received_data += received_packet
+            else:
                 return None
-            received_data += received_packet
         return bytes(received_data)
 
     def encrypt_with_public_key(self, byte_message):
@@ -126,15 +125,13 @@ class TcpClient:
         print(byte_message)
         encryptor = PKCS1_OAEP.new(self.public_key_serv)
         encrypted_msg = encryptor.encrypt(byte_message)
-        encoded_encrypted_msg = base64.b64encode(encrypted_msg)
-        return encoded_encrypted_msg
+        return base64.b64encode(encrypted_msg)
 
     def decrypt_with_private_key(self, byte_message):
         """RSA Расшифровка текста"""
         decoded_encrypted_message = base64.b64decode(byte_message)
         private_key = PKCS1_OAEP.new(self.private_key_imp)
-        decrypted_text = private_key.decrypt(decoded_encrypted_message)
-        return decrypted_text
+        return private_key.decrypt(decoded_encrypted_message)
 
     def reconnect(self):
         """

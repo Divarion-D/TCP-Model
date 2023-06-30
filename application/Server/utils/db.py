@@ -1,7 +1,7 @@
 from helper.querybilder import QueryBuilder, DataBase
 import bcrypt
 
-qb = QueryBuilder(DataBase(), 'database.db')
+qb = QueryBuilder(DataBase(), "database.db")
 
 
 class DB:
@@ -17,17 +17,14 @@ class DB:
 
     def check_username_exist(self, username: str):
         # Check username from db
-        result = qb.select('users').where([['username', '=', username]]).one()
+        result = qb.select("users").where([["username", "=", username]]).one()
         return result is not None
 
     def add_user(self, username, password):
         # hash password
-        hash_pwd = bcrypt.hashpw(password.encode(
-            'utf-8'), bcrypt.gensalt())
+        hash_pwd = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-        user_id = qb.insert('groups', {'users': username, 'password': hash_pwd}).go()
-        return user_id
+        return qb.insert("users", {"username": username, "password": hash_pwd}).go()
 
     def get_user(self, username):
-        result = qb.select('users').where([['username', '=', username]]).one()
-        return result
+        return qb.select("users").where([["username", "=", username]]).one()

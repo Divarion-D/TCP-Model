@@ -72,10 +72,9 @@ def on_new_client(client_socket, client_addr, clients, private_key_imp):
 
 
 def authorize_client(client_socket, private_key_imp, public_key_client, clients):
-    data = common.recv_data_client(client_socket, private_key_imp, True)
-    if data:
+    if data := common.recv_data_client(client_socket, private_key_imp, True):
         send_key = data.get("send_key")
-        print(send_key + " not auth")  # debug
+        print(f"{send_key} not auth")
         if send_key == "SIGNUP":
             return handle_signup(data, public_key_client, clients, client_socket)
         elif send_key == "LOGIN":
@@ -112,8 +111,7 @@ def handle_authorized_client(
     client_socket, private_key_imp, public_key_client, clients
 ):
     try:
-        data = common.recv_data_client(client_socket, private_key_imp, True)
-        if data:
+        if data := common.recv_data_client(client_socket, private_key_imp, True):
             handle_data(
                 data, clients, client_socket, public_key_client, private_key_imp
             )
@@ -125,7 +123,7 @@ def handle_authorized_client(
 
 def handle_data(data, clients, client_socket, public_key_client, private_key_imp):
     send_key = data.get("send_key")
-    print(send_key + " auth")  # debug
+    print(f"{send_key} auth")
     if send_key == "TEST":
         print("authorize")
     elif send_key == "FILE UPLOAD":
@@ -146,8 +144,7 @@ def reset_connection(client_socket, clients):
 
 
 def rsa_connect(client_socket):
-    data = client_socket.recv(BUFFER_SIZE).decode("utf-8").replace("\r\n", "")
-    if data:
+    if data := client_socket.recv(BUFFER_SIZE).decode("utf-8").replace("\r\n", ""):
         split_data = data.split(":")
         tmp_client_public = split_data[0]
         client_public_hash = split_data[1]
@@ -189,10 +186,8 @@ def signup_user(username, password, public_key_client):
 
 
 def login_user(username, password, public_key_client):
-    # get data from database for user
-    data = db.get_user(username)
-    if data:
-        hash_pwd = data['password']  # get hash password from database
+    if data := db.get_user(username):
+        hash_pwd = data["password"]  # get hash password from database
         if bcrypt.checkpw(password.encode("utf-8"), hash_pwd):  # check password
             common.send_data_client(
                 client_socket,
@@ -223,7 +218,7 @@ def login_user(username, password, public_key_client):
 if __name__ == "__main__":
     try:
         color_print("Server started!", color="yellow")
-        color_print("Server adress: " + HOST + ":" + str(PORT), color="yellow")
+        color_print(f"Server adress: {HOST}:{str(PORT)}", color="yellow")
         color_print("Waiting for clients...", color="yellow")
         socket_obj.bind((HOST, PORT))  # Bind to the port
         # Now wait for client connection.

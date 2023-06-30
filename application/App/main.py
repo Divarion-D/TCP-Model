@@ -27,42 +27,42 @@ class Auth(QtWidgets.QMainWindow, Ui_Auth):
         self.pushButton_2.clicked.connect(self.auth)
 
     def auth(self):
-        sender = self.sender()
-        if sender:
-            if self.lineEdit.text() != "":
-                if self.lineEdit_2.text() != "":
-                    reg_data = {
-                        "username": self.lineEdit.text(),
-                        "password": self.lineEdit_2.text(),
-                    }
-                    if sender == self.pushButton:
-                        reg_data["send_key"] = "LOGIN"
-                        CLT.send_data_server(reg_data, True)
-                        data = CLT.recv_data_server(True)
-                    elif sender == self.pushButton_2:
-                        reg_data["send_key"] = "SIGNUP"
-                        CLT.send_data_server(reg_data, True)
-                        data = CLT.recv_data_server(True)
+        if not (sender := self.sender()):
+            return
+        if self.lineEdit.text() == "":
+            self.dialog.setText("Введите логин")
+            self.dialog.exec_()
 
-                    if data:
-                        if data["status"] == "OK":
-                            # Уже авторизировался и можно открыть главный интерфейс
-                            self.close()  # Закрываем окно
-                            self.dialog = File_send()  # Создаем окно
-                            self.dialog.show()  # Отображаем окно
-                        else:
-                            self.dialog.setText(data["message"])
-                            self.dialog.exec_()
-                    else:
-                        self.dialog.setText("No connection to server")
-                        self.dialog.exec_()
+        elif self.lineEdit_2.text() != "":
+            reg_data = {
+                "username": self.lineEdit.text(),
+                "password": self.lineEdit_2.text(),
+            }
+            if sender == self.pushButton:
+                reg_data["send_key"] = "LOGIN"
+                CLT.send_data_server(reg_data, True)
+                data = CLT.recv_data_server(True)
+            elif sender == self.pushButton_2:
+                reg_data["send_key"] = "SIGNUP"
+                CLT.send_data_server(reg_data, True)
+                data = CLT.recv_data_server(True)
 
+            if data:
+                if data["status"] == "OK":
+                    # Уже авторизировался и можно открыть главный интерфейс
+                    self.close()  # Закрываем окно
+                    self.dialog = File_send()  # Создаем окно
+                    self.dialog.show()  # Отображаем окно
                 else:
-                    self.dialog.setText("Введите пароль")
+                    self.dialog.setText(data["message"])
                     self.dialog.exec_()
             else:
-                self.dialog.setText("Введите логин")
+                self.dialog.setText("No connection to server")
                 self.dialog.exec_()
+
+        else:
+            self.dialog.setText("Введите пароль")
+            self.dialog.exec_()
 
 
 class File_send(QtWidgets.QMainWindow, Ui_File_send):
@@ -88,9 +88,7 @@ class File_send(QtWidgets.QMainWindow, Ui_File_send):
                     data_file = f.read()
 
                 CLT.send_data_server(data, True)
-                # ждать ответа от сервера
-                data = CLT.recv_data_server(True)
-                if data:
+                if data := CLT.recv_data_server(True):
                     if data["status"] == "OK":
                         CLT.send_data_server(data_file, False)
                     else:

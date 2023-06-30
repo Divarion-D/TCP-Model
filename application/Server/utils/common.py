@@ -4,11 +4,8 @@ import os
 import random
 import string
 import struct
-import sys
 
 from Crypto.Cipher import PKCS1_OAEP
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Добавляем путь до папки с модулями
 
 
 def send_data_client(client_socket, data, public_key_client, is_text):
@@ -18,7 +15,7 @@ def send_data_client(client_socket, data, public_key_client, is_text):
 
     data = encrypt_with_public_key(data, public_key_client)
 
-    data = struct.pack('>Q', len(data)) + data
+    data = struct.pack(">Q", len(data)) + data
     client_socket.sendall(data)
 
 
@@ -31,7 +28,7 @@ def recv_data_client(client_socket, private_key_server, is_text):
     if not raw_msg_len:
         return None
 
-    msg_len = struct.unpack('>Q', raw_msg_len)[0]
+    msg_len = struct.unpack(">Q", raw_msg_len)[0]
 
     # Read the message data
     data = receive_all(client_socket, msg_len)
@@ -50,11 +47,11 @@ def receive_all(client_socket, n):
     data = bytearray()
 
     while len(data) < n:
-        packet = client_socket.recv(n - len(data))
-        if not packet:
-            return None
+        if packet := client_socket.recv(n - len(data)):
+            data += packet
 
-        data += packet
+        else:
+            return None
 
     return bytes(data)
 
@@ -63,16 +60,14 @@ def encrypt_with_public_key(byte_message, public_key):
     """RSA Шифрование текста"""
     encryptor = PKCS1_OAEP.new(public_key)
     encrypted_msg = encryptor.encrypt(byte_message)
-    encoded_encrypted_msg = base64.b64encode(encrypted_msg)
-    return encoded_encrypted_msg
+    return base64.b64encode(encrypted_msg)
 
 
 def decrypt_with_private_key(byte_message, private_key):
     """RSA Расшифровка текста"""
     decode_encrypted_msg = base64.b64decode(byte_message)
     private_key = PKCS1_OAEP.new(private_key)
-    decrypted_text = private_key.decrypt(decode_encrypted_msg)
-    return decrypted_text
+    return private_key.decrypt(decode_encrypted_msg)
 
 
 class File:
@@ -80,27 +75,30 @@ class File:
         pass
 
     def get_random_string(self, length):
-        '''
+        """
         Generate a random string of fixed length
-        '''
-        result_str = ''.join(random.choice(string.ascii_letters)
-                             for i in range(length))
-        return result_str
+        """
+        return "".join(random.choice(string.ascii_letters) for _ in range(length))
 
-    def file_upload(self, clients, client_socket, recv_data, public_key_client, private_key_imp):
-        '''
+    def file_upload(
+        self, clients, client_socket, recv_data, public_key_client, private_key_imp
+    ):
+        """
         Client upload file
-        '''
-        file_name = recv_data['file_name']  # get file name
+        """
+        file_name = recv_data["file_name"]  # get file name
         send_data_client(
-            client_socket, {'status': 'OK'}, public_key_client, True)  # send status OK
+            client_socket, {"status": "OK"}, public_key_client, True
+        )  # send status OK
 
-        path = "file_tmp_upload/" + clients[client_socket]['username'] + "/"  # path to file
+        path = (
+            "file_tmp_upload/" + clients[client_socket]["username"] + "/"
+        )  # path to file
 
         if not os.path.exists(path):  # if folder not exist
             os.makedirs(path)  # create folder
 
         data = recv_data_client(client_socket, private_key_imp, False)  # get file data
-        with open(os.path.join(path, file_name), 'wb') as f:
+        with open(os.path.join(path, file_name), "wb") as f:
             f.write(data)  # write file
         return True

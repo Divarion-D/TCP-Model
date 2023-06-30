@@ -21,7 +21,7 @@ class TcpClient:
         self.data = None
         self.sock = None
         self.public_key_serv = None
-        self.rsa_key = RSA.generate(1024, Random.new().read)
+        self.rsa_key = RSA.generate(2048, Random.new().read)
         self.public_key = self.rsa_key.publickey().exportKey()
         self.private_key = self.rsa_key.exportKey()
         self.private_key_imp = RSA.importKey(self.private_key)

@@ -1,6 +1,5 @@
 # Encwork
 <!-- Shields.io Badges -->
-[![Release](https://img.shields.io/github/v/release/Divarion-D/TCP-Model?style=flat-square)](https://github.com/Divarion-D/TCP-Model/releases)
 [![License](https://img.shields.io/github/license/Divarion-D/TCP-Model?style=flat-square)](https://github.com/Divarion-D/TCP-Model/blob/master/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue?style=flat-square)](https://www.python.org/downloads/)
 <!-- End of Badges -->

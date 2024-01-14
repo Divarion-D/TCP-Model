@@ -1,5 +1,5 @@
 cryptography==41.0.6
 lazyme==0.0.27
-pycryptodome==3.18.0
+pycryptodome==3.19.1
 PySide2==5.15.2.1
 python_bcrypt==0.3.2
